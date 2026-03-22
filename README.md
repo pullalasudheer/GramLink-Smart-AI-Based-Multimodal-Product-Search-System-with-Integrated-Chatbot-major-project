@@ -1,91 +1,114 @@
-# Gram Connect - AI Shopping Assistant
+# Gram Connect
 
 ## Overview
-Gram Connect is a comprehensive e-commerce platform that connects shopkeepers, customers, and delivery partners. The platform now features an intelligent AI shopping assistant that helps users with various shopping-related queries.
+Gram Connect is a multi-role commerce platform that connects three stakeholders:
 
-## Features
+- Customers: discover products from local shops, add to cart, checkout, and track orders
+- Shopkeepers: manage products and orders via a dedicated dashboard
+- Delivery Partners: accept ready orders and update delivery status
 
-### 🤖 AI Shopping Assistant
-The platform includes a sophisticated AI chatbot that provides intelligent responses to user queries about:
+The app also includes an on-site AI assistant that helps users navigate common flows (login/register, open dashboards, view orders, browse products). The assistant can answer FAQs using rules, and optionally generate responses using local Transformers or Hugging Face Inference API when configured.
 
-- **Order Management**: Track orders, check delivery status, and manage order history
-- **Product Information**: Find products, browse categories, and get product details
-- **Payment & Security**: Information about payment methods, security, and transaction safety
-- **Returns & Refunds**: Return policies, refund processes, and exchange information
-- **Shop Verification**: Details about trusted shops, verification processes, and ratings
-- **Delivery Options**: Multiple delivery methods, timing, and location-based services
-- **Customer Support**: 24/7 assistance, contact information, and self-service options
+## Key Features
 
-### 🎯 Quick Tips
-The AI bot features quick tip buttons for common questions:
-- Track Order
-- Payment Methods
-- Returns Process
-- Delivery Options
-- Shop Trust
-- Deals & Discounts
+- Multi-role dashboards: `customer`, `shopkeeper`, `delivery`
+- Product management for shopkeepers (add, edit, delete)
+- Customer checkout creating per-shop orders with server-side order items
+- Order management with clear status flow
+- Delivery partner acceptance and delivery status updates
+- Public and session-aware product APIs with simple search
+- Reorder previous orders (rebuilds cart from last/specific order)
+- Price History API with analysis and buy recommendations
+- Location master data APIs (states, districts, mandals, villages)
+- Multi-language scaffolding (English, Hindi, Tamil, Telugu, Kannada, Malayalam)
 
-### 💬 Intelligent Conversations
-The AI bot understands context and provides personalized responses based on:
-- User query keywords
-- Question complexity
-- E-commerce domain knowledge
-- Platform-specific information
+## Project Structure (High-Level)
 
-## Technical Implementation
+- Custom user model: `members.Shopkeeper` (see `AUTH_USER_MODEL` in `mysite/settings.py`)
+- Templates in `templates/` for all roles and flows
+- Static files in `static/`; user uploads in `media/`
+- Localization files in `locale/` with `LocaleMiddleware` enabled
 
-### Backend
-- **Django Views**: RESTful API endpoints for AI chat functionality
-- **Response Generation**: Context-aware response system with keyword matching
-- **CSRF Protection**: Secure communication with proper token handling
+## URLs & Endpoints
 
-### Frontend
-- **Modern UI**: Beautiful gradient design with smooth animations
-- **Responsive Design**: Works seamlessly on all device sizes
-- **Real-time Chat**: Typing indicators and smooth message flow
-- **CSS Classes**: Clean, maintainable styling with hover effects
+### Web Routes (examples)
+- `/` → Home
+- `/shopkeeper/login`, `/shopkeeper/register`, `/shopkeeper/dashboard`
+- `/customer/login`, `/customer/register`, `/customer/dashboard`, `/customer/cart`, `/customer/orders`
+- `/delivery/login`, `/delivery/register`, `/delivery/dashboard`
+- `/logout`
 
-### API Endpoints
-- `POST /api/ai/chat/`: Main AI chat endpoint
-- `POST /api/customer/login/`: Customer authentication
-- `POST /api/customer/register/`: Customer registration
-- `GET /api/products/`: Product browsing and search
+### JSON APIs
+- Auth (Customer):
+  - `POST /api/customer/login/`
+  - `POST /api/customer/register/`
+- Auth (Shopkeeper):
+  - `POST /api/shopkeeper/login/`
+  - `POST /api/shopkeeper/register/`
+- Auth (Delivery):
+  - `POST /api/delivery/login/`
+  - `POST /api/delivery/register/`
+- Products:
+  - `GET /api/products/?mode=alphabetical|shopwise&q=<search>` (filters by customer's village when logged in)
+- Price History:
+  - `GET /api/product/<product_id>/price-history/`
+- Locations:
+  - `GET /api/states/`
+  - `GET /api/districts/<state_id>/`
+  - `GET /api/mandals/<district_id>/`
+  - `GET /api/villages/<mandal_id>/`
 
-## Usage
+Note: The previous `POST /api/ai/chat/` endpoint is not present. The assistant currently runs on-page using `members/ai_bot.py` logic (rule-based and optional model integration) and does not expose a dedicated HTTP endpoint by default.
 
-### For Customers
-1. Click the floating AI bot icon (🤖) on any page
-2. Ask questions about products, orders, payments, or services
-3. Use quick tip buttons for common questions
-4. Get instant, helpful responses from the AI assistant
+## Order Status Flow
 
-### For Developers
-The AI bot can be extended by:
-- Adding new response patterns in `generate_ai_response()`
-- Creating additional quick tip categories
-- Integrating with external AI services
-- Adding conversation memory and context
+`pending → confirmed → ready → assigned → out_for_delivery → delivered` (plus `cancelled` when applicable)
 
-## Installation & Setup
+## Reorder Capability
 
-1. Clone the repository
-2. Install dependencies: `pip install -r requirements.txt`
-3. Run migrations: `python manage.py migrate`
-4. Start the server: `python manage.py runserver`
-5. Access the AI bot on any page
+- Reorder last order: `GET /customer/reorder/`
+- Reorder by order id: `GET /customer/reorder/<order_id>/`
 
-## Future Enhancements
+These routes reconstruct a cart (client localStorage) and redirect to the cart/checkout flow.
 
-- **Machine Learning Integration**: Connect with external AI models for more sophisticated responses
-- **Conversation Memory**: Remember user preferences and conversation history
-- **Multi-language Support**: Support for multiple languages
-- **Voice Integration**: Voice-to-text and text-to-speech capabilities
-- **Product Recommendations**: AI-powered product suggestions based on user queries
+## Localization (i18n)
 
-## Contributing
+- Enabled languages: English (`en`), Hindi (`hi`), Tamil (`ta`), Telugu (`te`), Kannada (`kn`), Malayalam (`ml`)
+- Language switcher base route: `/i18n/`
+- Translation files live in `locale/<lang>/LC_MESSAGES/`
 
-Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests.
+## Installation & Setup (Windows PowerShell)
+
+1. Create and activate a virtual environment (optional if `env/` exists)
+   - `python -m venv env`
+   - `./env/Scripts/Activate.ps1`
+2. Install dependencies
+   - `pip install -r requirements.txt`
+3. Run database migrations
+   - `python manage.py migrate`
+4. (Optional) Load location master data
+   - `python manage.py populate_locations`
+5. Start the development server
+   - `python manage.py runserver`
+6. Visit `http://127.0.0.1:8000/`
+
+## Configuration
+
+- `mysite/settings.py`
+  - `AUTH_USER_MODEL = 'members.Shopkeeper'`
+  - `LANGUAGES`, `LOCALE_PATHS`, `LocaleMiddleware` enabled
+  - `STATIC_URL`, `MEDIA_URL`, `MEDIA_ROOT` configured
+
+- AI Assistant (optional)
+  - Local model (if `transformers` is installed): set `AI_TEXT_GEN_MODEL` (default `distilgpt2`)
+  - Hugging Face Inference API: set `HF_API_TOKEN` (or `HUGGINGFACEHUB_API_TOKEN`) and optionally `HF_MODEL_ID` (default `google/gemma-2-2b-it`)
+
+## Development Notes
+
+- Products are filtered to a customer's village when a customer session exists
+- Price history analysis returns min/avg/max, trend, and a human-readable recommendation
+- Static assets are served from `static/`; user-uploaded images from `media/` (dev only)
 
 ## License
 
-This project is licensed under the MIT License.
+MIT
